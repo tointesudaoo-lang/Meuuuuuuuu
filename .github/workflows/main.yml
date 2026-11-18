@@ -1,0 +1,83 @@
+
+name: Toin Cloud PC - AnyDesk 6H
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cloud-pc:
+    name: Toin Virtual Windows PC
+    runs-on: windows-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Preparar Windows
+        shell: pwsh
+        run: |
+          Write-Host "Iniciando Toin Cloud PC..."
+          Write-Host "Preparando ambiente Windows..."
+          New-Item -ItemType Directory -Force C:\ToinPC
+
+      - name: Baixar AnyDesk
+        shell: pwsh
+        run: |
+          $url = "https://download.anydesk.com/AnyDesk.exe"
+          $exe = "C:\ToinPC\AnyDesk.exe"
+
+          Invoke-WebRequest -Uri $url -OutFile $exe
+
+          if (!(Test-Path $exe)) {
+            throw "Falha ao baixar AnyDesk"
+          }
+
+      - name: Iniciar AnyDesk
+        shell: pwsh
+        run: |
+          $exe = "C:\ToinPC\AnyDesk.exe"
+
+          Start-Process -FilePath $exe
+          Start-Sleep -Seconds 15
+
+          $id = & $exe --get-id
+
+          if (!$id) {
+            throw "Não foi possível obter o ID AnyDesk"
+          }
+
+          "ANYDESK_ID=$id" | Out-File $env:GITHUB_ENV -Append
+
+          Write-Host "================================"
+          Write-Host "TOIN CLOUD PC"
+          Write-Host "ANYDESK ID: $id"
+          Write-Host "================================"
+
+      - name: Configurar senha AnyDesk
+        shell: pwsh
+        env:
+          ANYDESK_PASSWORD: ${{ secrets.ANYDESK_PASSWORD }}
+        run: |
+          if (!$env:ANYDESK_PASSWORD) {
+            throw "Configure o segredo ANYDESK_PASSWORD"
+          }
+
+          $exe = "C:\ToinPC\AnyDesk.exe"
+
+          $env:ANYDESK_PASSWORD | & $exe --set-password
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Falha ao configurar senha AnyDesk"
+          }
+
+          Write-Host "Senha configurada."
+
+      - name: Manter PC ligado por até 6 horas
+        shell: pwsh
+        run: |
+          Write-Host "TOIN CLOUD PC ONLINE"
+          Write-Host "ID: $env:ANYDESK_ID"
+          Write-Host "Tempo máximo reservado: 6 horas"
+
+          # Reserva tempo para a preparação e encerramento.
+          Start-Sleep -Seconds 20700
+
+          Write-Host "Tempo encerrado. Desligando PC temporário."
